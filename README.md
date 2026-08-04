@@ -1,16 +1,89 @@
-# React + Vite
+# 🦷 BrightSmile Dental Care
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, fully responsive dental clinic website built with React, Tailwind CSS and Framer Motion — designed as a real-world, deployable template for dental practices.
 
-Currently, two official plugins are available:
+**🔗 Live Demo:** [medi-care-healthcare-website.vercel.app](https://medi-care-healthcare-website.vercel.app/)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## ✨ Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Animated hero section** with a decorative tooth-pattern background and floating trust badges
+- **Interactive Before/After slider** — drag to compare treatment results
+- **"Book in 3 Steps" process section** for clear appointment flow
+- **Dentist directory** with search, specialty filters and sort (rating, fee, experience)
+- **Services showcase** covering whitening, braces, root canal, implants, kids dentistry and more
+- **FAQ accordion** answering common patient questions
+- **Appointment booking form** with instant confirmation state
+- **Real Google Maps embed** for clinic location
+- **Sticky WhatsApp chat button** for instant patient contact
+- **Payment & insurance strip** (Cash, Easypaisa, JazzCash, Card, Insurance)
+- **Per-page SEO** — dynamic document titles & meta descriptions
+- Fully responsive — optimized for mobile, tablet and desktop
 
-## Expanding the ESLint configuration
+## 🛠️ Tech Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- **React** (Vite)
+- **Tailwind CSS** — utility-first styling
+- **Framer Motion** — animations and transitions
+- **React Router** — client-side routing
+- **Lucide React** — icon set
+- **React Hot Toast** — notifications
+
+## 📁 Project Structure
+
+```
+src/
+├── components/
+│   ├── Navbar.jsx
+│   ├── Footer.jsx
+│   └── WhatsAppButton.jsx
+├── pages/
+│   ├── Home.jsx
+│   ├── Services.jsx
+│   ├── Doctors.jsx
+│   └── Contact.jsx
+├── hooks/
+│   └── useDocumentTitle.js
+└── App.jsx
+
+public/
+├── hero.jpg
+└── yellow.jpg
+```
+
+## 🚀 Getting Started
+
+```bash
+# Clone the repository
+git clone https://github.com/mehreencodes/MediCare-Healthcare-Website.git
+
+# Navigate into the project
+cd MediCare-Healthcare-Website
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+```
+
+The app will be running at `http://localhost:5173`.
+
+## ⚙️ Configuration
+
+Before deploying for a real clinic, update the following:
+
+- **WhatsApp number** — `src/components/WhatsAppButton.jsx`
+- **Phone numbers** — `Navbar.jsx`, `Footer.jsx`, `Contact.jsx`, `Home.jsx`
+- **Clinic address & map location** — `src/pages/Contact.jsx`
+- **Social media links** — `src/components/Footer.jsx`
+- **Hero & before/after images** — `public/` folder
+
+## 📄 License
+
+This project is available for personal and commercial use. Feel free to customize it for your own dental practice or client projects.
+
+---
+
+Built with ❤️ for modern dental practices.
