@@ -1,12 +1,154 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import {
-  ArrowRight, Heart, Brain, Baby, Bone,
+  ArrowRight, Sparkles, Baby, Smile as SmileIcon,
   Star, CheckCircle, Clock, Users, Award,
   ChevronLeft, ChevronRight, Quote, Phone,
-  Activity, Shield, Zap
+  ShieldCheck, Zap, Wrench, Search, CalendarCheck, PartyPopper,
+  MoveHorizontal, MessageCircle, BadgeCheck, ChevronDown
 } from 'lucide-react'
+
+const faqs = [
+  {
+    q: 'Does treatment hurt?',
+    a: 'Most treatments — cleanings, fillings, whitening — are painless. For procedures like root canals or extractions we use local anesthesia, so you stay comfortable throughout.',
+  },
+  {
+    q: 'How much does a typical visit cost?',
+    a: 'A routine checkup starts around Rs. 1,200. Treatment costs vary by procedure — we always share the exact fee before starting any work, no surprises.',
+  },
+  {
+    q: 'Do you accept insurance?',
+    a: 'We accept most major health insurance panels. Bring your insurance card to your visit and our front desk will confirm your coverage before treatment.',
+  },
+  {
+    q: 'How long does an appointment take?',
+    a: 'A routine checkup or cleaning takes about 30–45 minutes. More involved treatments like implants or braces fittings may take longer — we\'ll let you know when you book.',
+  },
+  {
+    q: 'Can I book same-day for a dental emergency?',
+    a: 'Yes. Call our emergency line any time — we keep same-day slots open for urgent pain, broken teeth and injuries.',
+  },
+]
+
+function FAQItem({ item, isOpen, onClick }) {
+  return (
+    <div className="card overflow-hidden">
+      <button
+        onClick={onClick}
+        className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left">
+        <span className="font-bold text-slate-900">{item.q}</span>
+        <motion.span
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.25 }}
+          className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center">
+          <ChevronDown size={16} />
+        </motion.span>
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="overflow-hidden">
+            <p className="px-6 pb-5 text-sm text-slate-500 leading-relaxed">{item.a}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function ToothPattern({ className = '' }) {
+  return (
+    <svg
+      className={`absolute inset-0 w-full h-full pointer-events-none ${className}`}
+      xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="toothPattern" x="0" y="0" width="90" height="90" patternUnits="userSpaceOnUse">
+          <path
+            d="M45 18c-6 0-8 5-13 5-6 0-9-6-9 4 0 9 3 24 8 32 3 5 6 3 7-2 1-4 2-7 7-7s6 3 7 7c1 5 4 7 7 2 5-8 8-23 8-32 0-10-3-4-9-4-5 0-7-5-13-5z"
+            fill="currentColor" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#toothPattern)" />
+    </svg>
+  )
+}
+
+function BeforeAfterSlider() {
+  const [pos, setPos] = useState(50)
+  const trackRef = useRef(null)
+  const dragging = useRef(false)
+
+  const updateFromClientX = (clientX) => {
+    if (!trackRef.current) return
+    const rect = trackRef.current.getBoundingClientRect()
+    const pct = ((clientX - rect.left) / rect.width) * 100
+    setPos(Math.min(100, Math.max(0, pct)))
+  }
+
+  return (
+    <div
+      ref={trackRef}
+      className="relative w-full max-w-sm mx-auto aspect-[3/4] rounded-3xl overflow-hidden shadow-2xl select-none cursor-ew-resize"
+      onMouseDown={e => { dragging.current = true; updateFromClientX(e.clientX) }}
+      onMouseMove={e => { if (dragging.current) updateFromClientX(e.clientX) }}
+      onMouseUp={() => (dragging.current = false)}
+      onMouseLeave={() => (dragging.current = false)}
+      onTouchStart={e => updateFromClientX(e.touches[0].clientX)}
+      onTouchMove={e => updateFromClientX(e.touches[0].clientX)}
+    >
+      {/* "After" layer — right half of yellow.jpg (already-whitened side) */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: 'url(/yellow.jpg)',
+          backgroundSize: '200% 100%',
+          backgroundPosition: 'right center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
+        <span className="absolute top-5 right-5 badge bg-primary-600 text-white border-none">After</span>
+      </div>
+
+      {/* "Before" layer — left half of yellow.jpg (stained side), clipped by slider position */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: 'url(/yellow.jpg)',
+          backgroundSize: '200% 100%',
+          backgroundPosition: 'left center',
+          backgroundRepeat: 'no-repeat',
+          clipPath: `inset(0 ${100 - pos}% 0 0)`,
+        }}
+      >
+        <span className="absolute top-5 left-5 badge bg-slate-700 text-white border-none">Before</span>
+      </div>
+
+      {/* Handle */}
+      <div
+        className="absolute top-0 bottom-0 w-1 bg-white shadow-lg"
+        style={{ left: `${pos}%`, transform: 'translateX(-50%)' }}
+      >
+        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-1/2 w-11 h-11 rounded-full bg-white shadow-xl flex items-center justify-center text-primary-600">
+          <MoveHorizontal size={18} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const steps = [
+  { icon: Search, title: 'Pick a treatment', desc: 'Browse services and choose what you need — whitening, braces, implants and more.' },
+  { icon: CalendarCheck, title: 'Choose your dentist & time', desc: 'Filter by availability, rating or fee and pick a slot that works for you.' },
+  { icon: PartyPopper, title: 'Get confirmed instantly', desc: 'Receive confirmation right away — no phone tag, no waiting on hold.' },
+]
+
 
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
@@ -17,17 +159,17 @@ const fadeUp = {
 }
 
 const stats = [
-  { icon: Users, value: '10,000+', label: 'Happy Patients', color: 'text-primary-600 bg-primary-50' },
-  { icon: Award, value: '50+', label: 'Expert Doctors', color: 'text-violet-600 bg-violet-50' },
-  { icon: Clock, value: '24/7', label: 'Always Available', color: 'text-rose-600 bg-rose-50' },
+  { icon: Users, value: '5,000+', label: 'Happy Patients', color: 'text-primary-600 bg-primary-50' },
+  { icon: Award, value: '15+', label: 'Dental Experts', color: 'text-violet-600 bg-violet-50' },
+  { icon: Clock, value: '24/7', label: 'Emergency Care', color: 'text-rose-600 bg-rose-50' },
   { icon: Star, value: '4.9★', label: 'Average Rating', color: 'text-amber-600 bg-amber-50' },
 ]
 
 const specialties = [
-  { icon: Heart, label: 'Cardiology', desc: 'Heart & vascular care', color: 'bg-rose-50 text-rose-500', hoverBorder: 'hover:border-rose-300' },
-  { icon: Brain, label: 'Neurology', desc: 'Brain & nerve disorders', color: 'bg-violet-50 text-violet-500', hoverBorder: 'hover:border-violet-300' },
-  { icon: Baby, label: 'Pediatrics', desc: 'Child health & growth', color: 'bg-green-50 text-green-500', hoverBorder: 'hover:border-green-300' },
-  { icon: Bone, label: 'Orthopedics', desc: 'Bone & joint treatment', color: 'bg-blue-50 text-blue-500', hoverBorder: 'hover:border-blue-300' },
+  { icon: Sparkles, label: 'Teeth Whitening', desc: 'Brighter smile in one visit', color: 'bg-amber-50 text-amber-500', hoverBorder: 'hover:border-amber-300' },
+  { icon: Wrench, label: 'Braces & Aligners', desc: 'Straighter teeth, any age', color: 'bg-violet-50 text-violet-500', hoverBorder: 'hover:border-violet-300' },
+  { icon: Baby, label: 'Kids Dentistry', desc: 'Gentle care for little ones', color: 'bg-green-50 text-green-500', hoverBorder: 'hover:border-green-300' },
+  { icon: SmileIcon, label: 'Dental Implants', desc: 'Permanent tooth replacement', color: 'bg-blue-50 text-blue-500', hoverBorder: 'hover:border-blue-300' },
 ]
 
 const testimonials = [
@@ -35,51 +177,51 @@ const testimonials = [
     name: 'Ayesha Raza',
     city: 'Lahore',
     rating: 5,
-    review: 'MediCare ne meri zindagi badal di. Dr. Sara Ahmed ne mere dil ki takleef ko bilkul sahi diagnose kiya. Booking process itni easy thi — sirf 2 minute mein appointment mil gayi!',
+    review: 'BrightSmile ne meri smile bilkul badal di. Dr. Hira ne braces lagane se pehle har detail explain ki. Booking process itni easy thi — sirf 2 minute mein appointment mil gayi!',
     avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-    treatment: 'Cardiology',
+    treatment: 'Braces & Aligners',
   },
   {
     name: 'Usman Tariq',
     city: 'Karachi',
     rating: 5,
-    review: 'Mere bete ka pediatric checkup tha. Dr. Omar ne itne pyaar se treat kiya, bachcha bilkul nahi roya. Service phenomenal thi aur fee bhi reasonable.',
+    review: 'Mere bete ka pehla dental checkup tha, bohat dartaa tha. Dr. Omar ne itne pyaar se treat kiya, bachcha bilkul nahi roya. Service phenomenal thi aur fee bhi reasonable.',
     avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-    treatment: 'Pediatrics',
+    treatment: 'Kids Dentistry',
   },
   {
     name: 'Sana Malik',
     city: 'Islamabad',
     rating: 5,
-    review: 'Skin problem ke liye Dr. Fatima se mila. Unhone ek hi session mein problem identify kar li. Ab skin bilkul clear hai. Highly recommended!',
+    review: 'Teeth whitening ke liye gayi thi, result ek hi session mein amazing tha. Staff bhi bohat professional aur friendly hai. Highly recommended!',
     avatar: 'https://randomuser.me/api/portraits/women/68.jpg',
-    treatment: 'Dermatology',
+    treatment: 'Teeth Whitening',
   },
   {
     name: 'Bilal Ahmed',
     city: 'Faisalabad',
     rating: 5,
-    review: 'Knee injury ke baad Dr. Bilal Raza ne surgical se pehle physiotherapy recommend ki. 3 hafte mein 80% better ho gaya. Zabardast doctor!',
+    review: 'Root canal ka naam sun kar dar gaya tha, lekin Dr. Ali ne itna painless kiya ke pata hi nahi chala. Zabardast dentist, bilkul professional setup.',
     avatar: 'https://randomuser.me/api/portraits/men/75.jpg',
-    treatment: 'Orthopedics',
+    treatment: 'Root Canal',
   },
   {
     name: 'Mariam Khan',
     city: 'Multan',
     rating: 5,
-    review: 'Neurologist se migraine ka ilaaj karwaya. Dr. Ali ne bilkul sahi dawai di. 2 mahine mein migraine attacks band ho gaye. Shukriya MediCare!',
+    review: 'Dental implant karwaya tha do dant ki jagah. Dr. Zunaira ne itni saaf tarah se sab explain kiya, ab bilkul natural feel hota hai. Shukriya BrightSmile!',
     avatar: 'https://randomuser.me/api/portraits/women/90.jpg',
-    treatment: 'Neurology',
+    treatment: 'Dental Implants',
   },
 ]
 
 const whyUs = [
-  { icon: Shield, text: 'Board-certified & verified doctors' },
+  { icon: ShieldCheck, text: 'Certified & experienced dentists' },
   { icon: Zap, text: 'Instant appointment confirmation' },
-  { icon: CheckCircle, text: 'Affordable consultation fees' },
-  { icon: Activity, text: 'Follow-up care included' },
-  { icon: Clock, text: 'Online & in-clinic options' },
-  { icon: Star, text: 'Transparent pricing always' },
+  { icon: CheckCircle, text: 'Affordable, transparent pricing' },
+  { icon: Sparkles, text: 'Modern, painless techniques' },
+  { icon: Clock, text: 'Evening & weekend slots' },
+  { icon: Star, text: 'Free follow-up consultation' },
 ]
 
 const recentPatients = [
@@ -91,8 +233,13 @@ const recentPatients = [
 ]
 
 export default function Home() {
+  useDocumentTitle(
+    'Home',
+    'BrightSmile Dental Care — trusted dentists in Lahore for whitening, braces, implants, root canal and family dental care. Book your appointment online today.'
+  )
   const [current, setCurrent] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [openFaq, setOpenFaq] = useState(0)
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1200)
@@ -118,7 +265,7 @@ export default function Home() {
         animate={{ opacity: 1 }}
         className="text-slate-500 font-semibold text-sm tracking-wide"
       >
-        Loading MediCare...
+        Loading BrightSmile...
       </motion.p>
     </div>
   )
@@ -128,135 +275,108 @@ export default function Home() {
 
       {/* ── HERO ── */}
       <section className="relative min-h-screen flex items-center bg-gradient-to-br from-primary-50 via-white to-blue-50 overflow-hidden">
+        <ToothPattern className="text-primary-600 opacity-[0.04]" />
         <div className="absolute top-20 right-0 w-96 h-96 bg-primary-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
         <div className="absolute bottom-10 left-0 w-72 h-72 bg-blue-100 rounded-full blur-3xl opacity-40 pointer-events-none" />
 
         <div className="section relative z-10 grid md:grid-cols-2 gap-16 items-center py-16">
           <div>
-            <motion.div variants={fadeUp} initial="hidden" animate="show" custom={0}>
-              <span className="badge mb-6">🏥 Pakistan's #1 Healthcare Platform</span>
-            </motion.div>
-            <motion.h1 variants={fadeUp} initial="hidden" animate="show" custom={1}
+            <motion.h1 variants={fadeUp} initial="hidden" animate="show" custom={0}
               className="text-5xl md:text-6xl font-extrabold text-slate-900 leading-tight">
-              Your Health,<br />
-              <span className="text-primary-600">Our Priority</span>
+              Bring the Bright<br />
+              Smile with<br />
+              <span className="text-primary-600">Healthy Dental</span>
             </motion.h1>
-            <motion.p variants={fadeUp} initial="hidden" animate="show" custom={2}
+            <motion.p variants={fadeUp} initial="hidden" animate="show" custom={1}
               className="mt-6 text-lg text-slate-500 leading-relaxed max-w-lg">
-              Book appointments with Pakistan's top verified specialists instantly. No waiting, no hassle — just quality care when you need it.
+              We provide comprehensive and personalized dental care, using modern techniques
+              and gentle expertise to keep your smile bright, healthy and confident.
             </motion.p>
 
-            {/* Social proof */}
+            <motion.div variants={fadeUp} initial="hidden" animate="show" custom={2}
+              className="flex items-center gap-4 mt-9 flex-wrap">
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Link to="/contact" className="btn-primary text-base px-8 py-4">
+                  Make an Appointment
+                </Link>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Link to="/contact" className="btn-outline text-base px-8 py-4">
+                  Free Consultation
+                </Link>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <a
+                  href="https://wa.me/923000000000"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-semibold px-5 py-2.5 rounded-full shadow-md shadow-green-500/20 transition-colors text-sm">
+                  <MessageCircle size={15} fill="white" strokeWidth={0} /> WhatsApp
+                </a>
+              </motion.div>
+            </motion.div>
+
+            {/* Trust line */}
             <motion.div variants={fadeUp} initial="hidden" animate="show" custom={3}
-              className="flex items-center gap-4 mt-8 bg-white rounded-2xl px-5 py-4 shadow-lg border border-slate-100 w-fit">
-              <div className="flex -space-x-3">
-                {recentPatients.map((p, i) => (
-                  <img key={i} src={p.avatar} alt={p.name}
-                    className="w-9 h-9 rounded-full border-2 border-white object-cover"
-                    onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${p.name}&background=0284c7&color=fff` }}
-                  />
-                ))}
+              className="flex items-center gap-4 mt-10">
+              <div className="w-12 h-12 rounded-xl border border-slate-200 bg-white flex items-center justify-center flex-shrink-0">
+                <ShieldCheck size={22} className="text-primary-600" />
               </div>
               <div>
-                <div className="flex gap-0.5">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={12} className="text-amber-400 fill-amber-400" />
-                  ))}
-                </div>
-                <p className="text-xs text-slate-600 font-semibold mt-0.5">
-                  10,000+ patients trust us
+                <p className="font-bold text-slate-900 text-sm">Certified Dental Team</p>
+                <p className="text-xs text-slate-500 mt-0.5 max-w-xs">
+                  Every dentist is licensed and regularly assessed for safe, modern treatment.
                 </p>
               </div>
             </motion.div>
-
-            <motion.div variants={fadeUp} initial="hidden" animate="show" custom={4}
-              className="flex gap-4 mt-8 flex-wrap">
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                <Link to="/doctors" className="btn-primary text-base px-8 py-4">
-                  Find a Doctor <ArrowRight size={18} />
-                </Link>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                <Link to="/services" className="btn-outline text-base px-8 py-4">
-                  Our Services
-                </Link>
-              </motion.div>
-            </motion.div>
           </div>
 
-          {/* Hero Card */}
+          {/* Hero Photo */}
           <motion.div
             initial={{ opacity: 0, x: 60 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
-            className="relative hidden md:block">
+            className="relative flex items-center justify-center mt-4 md:mt-0">
 
-            <div className="card p-7 relative z-10">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-slate-900">Next Available</h3>
-                <span className="flex items-center gap-1.5 text-xs font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-full">
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  Live
-                </span>
-              </div>
+            {/* Blob backdrop */}
+            <div
+              className="absolute w-[280px] h-[320px] md:w-[420px] md:h-[480px] bg-primary-100"
+              style={{ borderRadius: '42% 58% 65% 35% / 45% 40% 60% 55%' }}
+            />
 
-              {[
-                { name: 'Dr. Sara Ahmed', spec: 'Cardiologist', time: 'Today 9:00 AM', img: 'https://randomuser.me/api/portraits/women/44.jpg' },
-                { name: 'Dr. Ali Hassan', spec: 'Neurologist', time: 'Today 11:00 AM', img: 'https://randomuser.me/api/portraits/men/32.jpg' },
-                { name: 'Dr. Fatima Khan', spec: 'Dermatologist', time: 'Today 2:30 PM', img: 'https://randomuser.me/api/portraits/women/68.jpg' },
-              ].map((doc, i) => (
-                <motion.div key={i}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + i * 0.15 }}
-                  className="flex items-center gap-3 bg-slate-50 rounded-2xl px-4 py-3 mb-3 hover:bg-primary-50 transition-colors cursor-pointer group">
-                  <img src={doc.img} alt={doc.name}
-                    className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
-                    onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${doc.name}&background=0284c7&color=fff` }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-900 truncate">{doc.name}</p>
-                    <p className="text-xs text-primary-600 font-medium">{doc.spec}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-semibold text-slate-600">{doc.time}</p>
-                    <p className="text-xs text-green-500 font-bold group-hover:text-primary-600 transition-colors">Book →</p>
-                  </div>
-                </motion.div>
-              ))}
+            <Sparkles size={24} className="absolute top-2 left-4 md:top-6 md:left-10 text-primary-400 z-10" />
 
-              <Link to="/doctors" className="btn-primary w-full justify-center mt-4">
-                See All Doctors <ArrowRight size={16} />
-              </Link>
-            </div>
+            <img
+              src="/hero.jpg"
+              alt="Smiling dental patient at BrightSmile Dental Care"
+              className="relative z-10 w-[220px] sm:w-[260px] md:w-[340px] rounded-[2.5rem] object-cover shadow-2xl aspect-[3/4]"
+            />
 
             {/* Floating badges */}
             <motion.div
               animate={{ y: [0, -8, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-              className="absolute -top-5 -right-5 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-2 z-20 border border-slate-100">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-sm">✅</div>
-              <div>
-                <p className="text-xs font-bold text-slate-900">Confirmed!</p>
-                <p className="text-xs text-slate-500">Appointment booked</p>
-              </div>
+              className="absolute bottom-16 md:bottom-24 -right-1 md:-right-2 w-11 h-11 md:w-16 md:h-16 rounded-full bg-primary-600 shadow-xl flex items-center justify-center z-20">
+              <SmileIcon size={18} className="text-white md:hidden" />
+              <SmileIcon size={26} className="text-white hidden md:block" />
             </motion.div>
 
             <motion.div
               animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-              className="absolute -bottom-5 -left-5 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 z-20 border border-slate-100">
-              <div className="flex -space-x-2">
-                {recentPatients.slice(0, 3).map((p, i) => (
-                  <img key={i} src={p.avatar} alt={p.name}
-                    className="w-7 h-7 rounded-full border-2 border-white object-cover"
-                    onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${p.name}&background=0284c7&color=fff` }}
-                  />
-                ))}
-              </div>
+              transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+              className="absolute bottom-1 right-10 md:right-16 w-10 h-10 md:w-14 md:h-14 rounded-full bg-white shadow-xl border border-slate-100 flex items-center justify-center z-20">
+              <Star size={14} className="text-amber-400 fill-amber-400 md:hidden" />
+              <Star size={20} className="text-amber-400 fill-amber-400 hidden md:block" />
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+              className="absolute top-6 md:top-10 -left-1 md:-left-2 bg-white rounded-2xl shadow-xl px-3 py-2 md:px-4 md:py-3 flex items-center gap-2 z-20 border border-slate-100">
+              <div className="w-7 h-7 md:w-8 md:h-8 bg-amber-100 rounded-full flex items-center justify-center text-xs md:text-sm">⭐</div>
               <div>
-                <p className="text-xs font-bold text-slate-900">+10,000 patients</p>
-                <p className="text-xs text-slate-500">joined this month</p>
+                <p className="text-[10px] md:text-xs font-bold text-slate-900">4.9 / 5.0 Rating</p>
+                <p className="text-[10px] md:text-xs text-slate-500">312+ reviews</p>
               </div>
             </motion.div>
           </motion.div>
@@ -288,10 +408,10 @@ export default function Home() {
       <section className="section bg-slate-50">
         <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
           className="text-center mb-14">
-          <span className="badge mb-4">Our Specialties</span>
-          <h2 className="text-4xl font-extrabold text-slate-900 mt-3">World-Class Medical Care</h2>
+          <span className="badge mb-4">Our Treatments</span>
+          <h2 className="text-4xl font-extrabold text-slate-900 mt-3">World-Class Dental Care</h2>
           <p className="text-slate-500 mt-3 max-w-xl mx-auto">
-            Expert specialists across all major medical fields, ready to help you live healthier.
+            Expert dentists across every treatment area, ready to help you smile with confidence.
           </p>
         </motion.div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
@@ -312,6 +432,62 @@ export default function Home() {
               </Link>
             </motion.div>
           ))}
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ── */}
+      <section className="section bg-white">
+        <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
+          className="text-center mb-14">
+          <span className="badge mb-4">Simple Process</span>
+          <h2 className="text-4xl font-extrabold text-slate-900 mt-3">Book in 3 Easy Steps</h2>
+          <p className="text-slate-500 mt-3 max-w-xl mx-auto">
+            No calls, no waiting rooms full of uncertainty — just a clear path from search to smile.
+          </p>
+        </motion.div>
+        <div className="grid md:grid-cols-3 gap-6 relative">
+          <div className="hidden md:block absolute top-9 left-[16.5%] right-[16.5%] h-0.5 bg-slate-100" />
+          {steps.map(({ icon: Icon, title, desc }, i) => (
+            <motion.div key={title}
+              variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} custom={i}
+              className="relative text-center">
+              <div className="w-[72px] h-[72px] mx-auto rounded-full bg-primary-600 text-white flex items-center justify-center shadow-lg shadow-primary-200 relative z-10">
+                <Icon size={28} />
+              </div>
+              <span className="block text-xs font-extrabold text-primary-400 mt-4 tracking-widest">STEP 0{i + 1}</span>
+              <h3 className="font-bold text-slate-900 text-lg mt-1">{title}</h3>
+              <p className="text-sm text-slate-500 mt-2 leading-relaxed max-w-xs mx-auto">{desc}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── BEFORE / AFTER ── */}
+      <section className="section bg-slate-50">
+        <div className="grid md:grid-cols-2 gap-14 items-center">
+          <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}>
+            <span className="badge mb-5">Real Results</span>
+            <h2 className="text-4xl font-extrabold text-slate-900 leading-tight mt-2">
+              See the Difference<br />For Yourself
+            </h2>
+            <p className="text-slate-500 mt-5 leading-relaxed text-lg">
+              Drag the slider to preview a typical whitening transformation. Every treatment plan
+              is tailored to your teeth, your goals and your budget.
+            </p>
+            <div className="flex gap-4 mt-8 flex-wrap">
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Link to="/services" className="btn-primary text-base px-8 py-4">
+                  See Treatments <ArrowRight size={18} />
+                </Link>
+              </motion.div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} custom={1}>
+            <BeforeAfterSlider />
+            <p className="text-xs text-slate-400 text-center mt-3">← Drag to compare →</p>
+          </motion.div>
         </div>
       </section>
 
@@ -415,7 +591,7 @@ export default function Home() {
           ))}
           <div className="flex flex-col items-center gap-1">
             <div className="w-11 h-11 rounded-full bg-primary-100 border-2 border-white shadow-md flex items-center justify-center">
-              <span className="text-xs font-bold text-primary-600">+9k</span>
+              <span className="text-xs font-bold text-primary-600">+4k</span>
             </div>
             <span className="text-xs text-slate-500 font-medium">More</span>
           </div>
@@ -430,10 +606,10 @@ export default function Home() {
               Why Choose Us
             </span>
             <h2 className="text-4xl font-extrabold leading-tight mt-2">
-              Healthcare You Can<br />Actually Trust
+              Dental Care You Can<br />Actually Trust
             </h2>
             <p className="text-primary-100 mt-5 leading-relaxed text-lg">
-              We combine world-class doctors with seamless booking technology to deliver care that puts you first — always.
+              We combine skilled dentists with modern, gentle techniques and seamless booking to deliver care that puts your comfort first — always.
             </p>
             <div className="flex gap-4 mt-8 flex-wrap">
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -464,6 +640,36 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── FAQ ── */}
+      <section className="section bg-white">
+        <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
+          className="text-center mb-12">
+          <span className="badge mb-4">Got Questions?</span>
+          <h2 className="text-4xl font-extrabold text-slate-900 mt-3">Frequently Asked Questions</h2>
+          <p className="text-slate-500 mt-3 max-w-xl mx-auto">
+            Everything patients usually want to know before their first visit.
+          </p>
+        </motion.div>
+        <div className="max-w-2xl mx-auto space-y-3">
+          {faqs.map((item, i) => (
+            <motion.div key={item.q}
+              variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} custom={i}>
+              <FAQItem
+                item={item}
+                isOpen={openFaq === i}
+                onClick={() => setOpenFaq(openFaq === i ? -1 : i)}
+              />
+            </motion.div>
+          ))}
+        </div>
+        <motion.p
+          variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} custom={faqs.length}
+          className="text-center text-sm text-slate-500 mt-8">
+          Still have a question?{' '}
+          <Link to="/contact" className="text-primary-600 font-bold hover:underline">Ask us directly</Link>
+        </motion.p>
+      </section>
+
       {/* ── EMERGENCY BANNER ── */}
       <section className="bg-rose-600 text-white">
         <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -472,8 +678,8 @@ export default function Home() {
               <Phone size={22} className="text-white" />
             </div>
             <div>
-              <p className="font-extrabold text-lg">Emergency? Call Now!</p>
-              <p className="text-rose-100 text-sm">We're available 24/7 for medical emergencies</p>
+              <p className="font-extrabold text-lg">Dental Emergency? Call Now!</p>
+              <p className="text-rose-100 text-sm">We're available 24/7 for urgent dental pain & injuries</p>
             </div>
           </div>
           <a href="tel:+92300000000"
@@ -484,17 +690,18 @@ export default function Home() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="section text-center bg-slate-50">
-        <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}>
+      <section className="relative section text-center bg-slate-50 overflow-hidden">
+        <ToothPattern className="text-primary-600 opacity-[0.03]" />
+        <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} className="relative">
           <span className="badge mb-5">Get Started Today</span>
-          <h2 className="text-4xl font-extrabold text-slate-900 mt-2">Ready to Feel Better?</h2>
+          <h2 className="text-4xl font-extrabold text-slate-900 mt-2">Ready for a Brighter Smile?</h2>
           <p className="text-slate-500 mt-4 max-w-lg mx-auto text-lg">
-            Join 10,000+ patients who trust MediCare for their health needs across Pakistan.
+            Join 5,000+ patients who trust BrightSmile for their dental care across Pakistan.
           </p>
           <div className="flex gap-4 justify-center mt-10 flex-wrap">
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Link to="/doctors" className="btn-primary text-base px-10 py-4">
-                Find a Doctor <ArrowRight size={18} />
+                Find a Dentist <ArrowRight size={18} />
               </Link>
             </motion.div>
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>

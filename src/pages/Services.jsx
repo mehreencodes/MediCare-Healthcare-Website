@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import {
-  Heart, Brain, Baby, Bone, Eye,
-  Smile, Activity, Stethoscope, ArrowRight, CheckCircle
+  Sparkles, Wrench, Activity, Gem,
+  Baby, Stethoscope, ArrowRight, CheckCircle, Scissors
 } from 'lucide-react'
 
 const fadeUp = {
@@ -15,86 +16,108 @@ const fadeUp = {
 
 const services = [
   {
-    icon: Heart,
-    title: 'Cardiology',
-    desc: 'Complete heart health — ECG, echo, stress tests and treatment for all cardiac conditions.',
-    color: 'bg-rose-50 text-rose-500',
-    border: 'hover:border-rose-200',
-    tag: 'Heart & Vascular',
-    features: ['ECG & Echo', 'Stress Testing', 'Heart Surgery Referral', 'Preventive Care'],
-  },
-  {
-    icon: Brain,
-    title: 'Neurology',
-    desc: 'Expert diagnosis for migraines, epilepsy, stroke and all neurological disorders.',
-    color: 'bg-violet-50 text-violet-500',
-    border: 'hover:border-violet-200',
-    tag: 'Brain & Nerves',
-    features: ['MRI Analysis', 'Epilepsy Treatment', 'Stroke Care', 'Migraine Management'],
-  },
-  {
-    icon: Baby,
-    title: 'Pediatrics',
-    desc: 'Specialized care for children — from newborns to teens. Growth, nutrition and vaccinations.',
-    color: 'bg-green-50 text-green-500',
-    border: 'hover:border-green-200',
-    tag: 'Child Health',
-    features: ['Vaccinations', 'Growth Tracking', 'Nutrition Plans', 'Child Psychology'],
-  },
-  {
-    icon: Bone,
-    title: 'Orthopedics',
-    desc: 'Bone, joint and muscle treatment. Sports injuries, fractures and joint replacement.',
-    color: 'bg-blue-50 text-blue-500',
-    border: 'hover:border-blue-200',
-    tag: 'Bone & Joints',
-    features: ['Fracture Treatment', 'Sports Injury', 'Joint Replacement', 'Physiotherapy'],
-  },
-  {
-    icon: Eye,
-    title: 'Ophthalmology',
-    desc: 'Complete eye care — vision testing, cataract surgery, and treatment for eye diseases.',
-    color: 'bg-cyan-50 text-cyan-500',
-    border: 'hover:border-cyan-200',
-    tag: 'Eye Care',
-    features: ['Vision Testing', 'Cataract Surgery', 'LASIK Referral', 'Glaucoma Care'],
-  },
-  {
-    icon: Smile,
-    title: 'Dentistry',
-    desc: 'Modern dental care — cleanings, fillings, braces, implants and cosmetic dentistry.',
+    icon: Sparkles,
+    title: 'Teeth Whitening',
+    desc: 'Safe, fast in-clinic whitening for a brighter, more confident smile in one visit.',
     color: 'bg-amber-50 text-amber-500',
     border: 'hover:border-amber-200',
-    tag: 'Dental',
-    features: ['Teeth Cleaning', 'Braces & Aligners', 'Implants', 'Cosmetic Dentistry'],
+    tag: 'Cosmetic',
+    features: ['In-office Whitening', 'Take-home Kits', 'Stain Removal', 'Sensitivity-safe Formula'],
+  },
+  {
+    icon: Wrench,
+    title: 'Braces & Aligners',
+    desc: 'Traditional braces and clear aligners to straighten teeth for kids, teens and adults.',
+    color: 'bg-violet-50 text-violet-500',
+    border: 'hover:border-violet-200',
+    tag: 'Orthodontics',
+    features: ['Metal & Ceramic Braces', 'Clear Aligners', 'Bite Correction', 'Retainers'],
   },
   {
     icon: Activity,
-    title: 'General Medicine',
-    desc: 'Routine checkups, fever, infections and all general health concerns handled expertly.',
-    color: 'bg-slate-50 text-slate-500',
-    border: 'hover:border-slate-300',
-    tag: 'Primary Care',
-    features: ['Routine Checkups', 'Blood Tests', 'Vaccinations', 'Health Screening'],
+    title: 'Root Canal Treatment',
+    desc: 'Painless, modern root canal therapy to save infected or badly decayed teeth.',
+    color: 'bg-rose-50 text-rose-500',
+    border: 'hover:border-rose-200',
+    tag: 'Restorative',
+    features: ['Single-visit RCT', 'Pain-free Procedure', 'Crown Placement', 'Follow-up Care'],
+  },
+  {
+    icon: Gem,
+    title: 'Dental Implants',
+    desc: 'Permanent, natural-looking replacement for missing teeth using titanium implants.',
+    color: 'bg-blue-50 text-blue-500',
+    border: 'hover:border-blue-200',
+    tag: 'Surgical',
+    features: ['Single Tooth Implants', 'Full Mouth Implants', 'Bone Grafting', 'Digital Planning'],
+  },
+  {
+    icon: Scissors,
+    title: 'Scaling & Polishing',
+    desc: 'Professional deep cleaning to remove plaque, tartar and surface stains.',
+    color: 'bg-cyan-50 text-cyan-500',
+    border: 'hover:border-cyan-200',
+    tag: 'Preventive',
+    features: ['Plaque Removal', 'Gum Health Check', 'Polishing', 'Fluoride Treatment'],
   },
   {
     icon: Stethoscope,
-    title: 'Dermatology',
-    desc: 'Skin, hair and nail treatment. Acne, eczema, psoriasis and cosmetic skin care.',
+    title: 'Wisdom Tooth Extraction',
+    desc: 'Safe removal of impacted or problematic wisdom teeth with minimal discomfort.',
+    color: 'bg-teal-50 text-teal-500',
+    border: 'hover:border-teal-200',
+    tag: 'Oral Surgery',
+    features: ['Impacted Tooth Removal', 'Local Anesthesia', 'Same-day Procedure', 'Aftercare Guidance'],
+  },
+  {
+    icon: Baby,
+    title: 'Kids Dentistry',
+    desc: 'Gentle, friendly dental care designed especially for children and first-time visits.',
+    color: 'bg-green-50 text-green-500',
+    border: 'hover:border-green-200',
+    tag: 'Pediatric',
+    features: ['First Visit Care', 'Cavity Prevention', 'Fluoride Treatment', 'Gentle Approach'],
+  },
+  {
+    icon: CheckCircle,
+    title: 'Cosmetic Dentistry',
+    desc: 'Complete smile makeovers with veneers, bonding and shape correction.',
     color: 'bg-pink-50 text-pink-500',
     border: 'hover:border-pink-200',
-    tag: 'Skin Care',
-    features: ['Acne Treatment', 'Hair Loss', 'Skin Cancer Screening', 'Cosmetic Procedures'],
+    tag: 'Smile Makeover',
+    features: ['Porcelain Veneers', 'Dental Bonding', 'Smile Design', 'Shape Correction'],
   },
 ]
 
+function ToothPattern({ className = '' }) {
+  return (
+    <svg className={`absolute inset-0 w-full h-full pointer-events-none ${className}`} xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="toothPatternServices" x="0" y="0" width="90" height="90" patternUnits="userSpaceOnUse">
+          <path
+            d="M45 18c-6 0-8 5-13 5-6 0-9-6-9 4 0 9 3 24 8 32 3 5 6 3 7-2 1-4 2-7 7-7s6 3 7 7c1 5 4 7 7 2 5-8 8-23 8-32 0-10-3-4-9-4-5 0-7-5-13-5z"
+            fill="currentColor" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#toothPatternServices)" />
+    </svg>
+  )
+}
+
 export default function Services() {
+  useDocumentTitle(
+    'Dental Services',
+    'Teeth whitening, braces & aligners, root canal, dental implants, scaling & polishing, wisdom tooth extraction, kids dentistry and cosmetic dentistry — all under one roof.'
+  )
   return (
     <div className="pt-16 overflow-x-hidden">
 
       {/* Header */}
-      <section className="bg-gradient-to-br from-primary-50 via-white to-blue-50 pt-20 pb-16">
-        <div className="section py-0 text-center">
+      <section className="relative bg-gradient-to-br from-primary-50 via-white to-blue-50 pt-20 pb-16 overflow-hidden">
+        <ToothPattern className="text-primary-600 opacity-[0.04]" />
+        <div className="absolute -top-10 -left-10 w-64 h-64 bg-primary-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-blue-100 rounded-full blur-3xl opacity-40 pointer-events-none" />
+        <div className="section py-0 text-center relative">
           <motion.span
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="badge mb-5">
@@ -104,13 +127,13 @@ export default function Services() {
             initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="text-5xl font-extrabold text-slate-900 mt-3">
-            Our Medical Services
+            Our Dental Services
           </motion.h1>
           <motion.p
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
             className="text-slate-500 mt-5 max-w-xl mx-auto text-lg">
-            World-class healthcare across all specialties — right here in Pakistan.
+            Modern, gentle dental care for every need — right here in Pakistan.
           </motion.p>
         </div>
       </section>

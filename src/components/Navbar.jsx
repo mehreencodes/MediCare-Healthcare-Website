@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Stethoscope, Menu, X, Phone } from 'lucide-react'
+import { Smile, Menu, X, Phone } from 'lucide-react'
 
 const links = [
   { to: '/', label: 'Home' },
   { to: '/services', label: 'Services' },
-  { to: '/doctors', label: 'Doctors' },
+  { to: '/doctors', label: 'Our Dentists' },
   { to: '/contact', label: 'Contact' },
 ]
 
@@ -42,10 +42,10 @@ export default function Navbar() {
             whileHover={{ scale: 1.05, rotate: -5 }}
             transition={{ type: 'spring', stiffness: 400 }}
             className="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg">
-            <Stethoscope size={20} className="text-white" />
+            <Smile size={20} className="text-white" />
           </motion.div>
           <span className="font-extrabold text-xl text-slate-900">
-            Medi<span className="text-primary-600">Care</span>
+            Bright<span className="text-primary-600">Smile</span>
           </span>
         </Link>
 

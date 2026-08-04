@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { Star, Clock, Banknote, Search, ArrowRight, Filter } from 'lucide-react'
 
 const fadeUp = {
@@ -14,51 +15,51 @@ const fadeUp = {
 const doctors = [
   {
     id: 1,
-    name: 'Dr. Sara Ahmed',
-    specialty: 'Cardiologist',
-    exp: '12 years',
+    name: 'Dr. Hira Baig',
+    specialty: 'Orthodontist',
+    exp: '9 years',
     rating: 4.9,
     reviews: 312,
     fee: 2500,
-    img: 'https://randomuser.me/api/portraits/women/44.jpg',
-    color: 'bg-rose-50',
+    img: 'https://randomuser.me/api/portraits/women/33.jpg',
+    color: 'bg-violet-50',
     days: ['Mon', 'Wed', 'Fri'],
     available: true,
-    about: 'Expert in heart disease prevention with 12 years of clinical experience.',
+    about: 'Specialist in braces, aligners and bite correction with 9 years of clinical experience.',
   },
   {
     id: 2,
     name: 'Dr. Ali Hassan',
-    specialty: 'Neurologist',
-    exp: '9 years',
+    specialty: 'Endodontist',
+    exp: '10 years',
     rating: 4.8,
     reviews: 247,
     fee: 3000,
     img: 'https://randomuser.me/api/portraits/men/32.jpg',
-    color: 'bg-violet-50',
+    color: 'bg-rose-50',
     days: ['Tue', 'Thu', 'Sat'],
     available: true,
-    about: 'Specializes in migraine, epilepsy and neurodegenerative disorders.',
+    about: 'Expert in painless root canal treatment and complex tooth pain diagnosis.',
   },
   {
     id: 3,
-    name: 'Dr. Fatima Khan',
-    specialty: 'Dermatologist',
-    exp: '7 years',
+    name: 'Dr. Zunaira Imran',
+    specialty: 'Cosmetic Dentist',
+    exp: '8 years',
     rating: 4.9,
-    reviews: 189,
-    fee: 2000,
-    img: 'https://randomuser.me/api/portraits/women/68.jpg',
+    reviews: 274,
+    fee: 3200,
+    img: 'https://randomuser.me/api/portraits/women/55.jpg',
     color: 'bg-amber-50',
-    days: ['Mon', 'Tue', 'Thu'],
+    days: ['Mon', 'Wed', 'Thu', 'Sat'],
     available: true,
-    about: 'Skin care specialist focused on acne, eczema and cosmetic dermatology.',
+    about: 'Focused on smile makeovers — veneers, whitening and full cosmetic bonding.',
   },
   {
     id: 4,
     name: 'Dr. Omar Siddiqui',
-    specialty: 'Pediatrician',
-    exp: '15 years',
+    specialty: 'Pediatric Dentist',
+    exp: '12 years',
     rating: 4.7,
     reviews: 421,
     fee: 1800,
@@ -66,26 +67,26 @@ const doctors = [
     color: 'bg-green-50',
     days: ['Mon', 'Wed', 'Sat'],
     available: false,
-    about: 'Dedicated children\'s doctor with expertise in growth and nutrition.',
+    about: 'Gentle, child-friendly dentist specializing in first visits and preventive care.',
   },
   {
     id: 5,
     name: 'Dr. Zara Malik',
-    specialty: 'Gynecologist',
+    specialty: 'Periodontist',
     exp: '11 years',
     rating: 4.9,
-    reviews: 538,
+    reviews: 198,
     fee: 2800,
     img: 'https://randomuser.me/api/portraits/women/90.jpg',
     color: 'bg-pink-50',
     days: ['Tue', 'Wed', 'Fri'],
     available: true,
-    about: 'Women\'s health specialist focused on maternal and reproductive care.',
+    about: 'Gum disease and gum health specialist with a focus on long-term oral care.',
   },
   {
     id: 6,
     name: 'Dr. Bilal Raza',
-    specialty: 'Orthopedist',
+    specialty: 'Oral Surgeon',
     exp: '10 years',
     rating: 4.6,
     reviews: 203,
@@ -94,26 +95,26 @@ const doctors = [
     color: 'bg-blue-50',
     days: ['Mon', 'Thu', 'Sat'],
     available: true,
-    about: 'Bone and joint specialist with expertise in sports injuries.',
+    about: 'Handles wisdom tooth extraction, dental implants and minor oral surgery.',
   },
   {
     id: 7,
-    name: 'Dr. Hira Baig',
-    specialty: 'Dentist',
+    name: 'Dr. Sara Ahmed',
+    specialty: 'General Dentist',
     exp: '6 years',
     rating: 4.8,
-    reviews: 156,
-    fee: 1500,
-    img: 'https://randomuser.me/api/portraits/women/33.jpg',
+    reviews: 356,
+    fee: 1200,
+    img: 'https://randomuser.me/api/portraits/women/44.jpg',
     color: 'bg-teal-50',
     days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
     available: true,
-    about: 'Dental specialist in cosmetic dentistry, braces and oral surgery.',
+    about: 'Routine checkups, scaling & polishing, fillings and everyday dental care.',
   },
   {
     id: 8,
     name: 'Dr. Usman Tariq',
-    specialty: 'General Physician',
+    specialty: 'General Dentist',
     exp: '8 years',
     rating: 4.7,
     reviews: 612,
@@ -122,30 +123,35 @@ const doctors = [
     color: 'bg-slate-50',
     days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     available: true,
-    about: 'General practice physician for routine checkups and general health.',
+    about: 'General dental practice for checkups, fillings and family dental care.',
   },
-    {
-  id: 9,
-  name: 'Dr. Zunaira Imran',
-  specialty: 'Dermatologist',
-  exp: '8 years',
-  rating: 4.9,
-  reviews: 274,
-  fee: 2200,
-  img: 'https://randomuser.me/api/portraits/women/55.jpg',
-  color: 'bg-rose-50',
-  days: ['Mon', 'Wed', 'Thu', 'Sat'],
-  available: true,
-  about: 'Skin specialist focused on acne, anti-aging, laser treatments and cosmetic dermatology.',
-},
 ]
 
 const specialties = [
-  'All', 'Cardiologist', 'Neurologist', 'Dermatologist',
-  'Pediatrician', 'Gynecologist', 'Orthopedist', 'Dentist', 'General Physician'
+  'All', 'General Dentist', 'Orthodontist', 'Endodontist',
+  'Periodontist', 'Pediatric Dentist', 'Cosmetic Dentist', 'Oral Surgeon'
 ]
 
+function ToothPattern({ className = '' }) {
+  return (
+    <svg className={`absolute inset-0 w-full h-full pointer-events-none ${className}`} xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="toothPatternDoctors" x="0" y="0" width="90" height="90" patternUnits="userSpaceOnUse">
+          <path
+            d="M45 18c-6 0-8 5-13 5-6 0-9-6-9 4 0 9 3 24 8 32 3 5 6 3 7-2 1-4 2-7 7-7s6 3 7 7c1 5 4 7 7 2 5-8 8-23 8-32 0-10-3-4-9-4-5 0-7-5-13-5z"
+            fill="currentColor" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#toothPatternDoctors)" />
+    </svg>
+  )
+}
+
 export default function Doctors() {
+  useDocumentTitle(
+    'Our Dentists',
+    'Meet our verified dentists — orthodontists, endodontists, oral surgeons and general dentists. Check ratings, fees and availability, then book online.'
+  )
   const [search, setSearch] = useState('')
   const [active, setActive] = useState('All')
   const [onlyAvailable, setOnlyAvailable] = useState(false)
@@ -171,24 +177,27 @@ export default function Doctors() {
     <div className="pt-16 overflow-x-hidden">
 
       {/* Header */}
-      <section className="bg-gradient-to-br from-primary-50 via-white to-blue-50 pt-20 pb-12">
-        <div className="section py-0 text-center">
+      <section className="relative bg-gradient-to-br from-primary-50 via-white to-blue-50 pt-20 pb-12 overflow-hidden">
+        <ToothPattern className="text-primary-600 opacity-[0.04]" />
+        <div className="absolute -top-10 -left-10 w-64 h-64 bg-primary-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-blue-100 rounded-full blur-3xl opacity-40 pointer-events-none" />
+        <div className="section py-0 text-center relative">
           <motion.span
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="badge mb-4">
-            Our Medical Team
+            Our Dental Team
           </motion.span>
           <motion.h1
             initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="text-5xl font-extrabold text-slate-900 mt-3">
-            Meet Our Doctors
+            Meet Our Dentists
           </motion.h1>
           <motion.p
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
             className="text-slate-500 mt-4 max-w-lg mx-auto text-lg">
-            Verified specialists with years of experience, ready to help you live healthier.
+            Verified dental specialists with years of experience, ready to help you smile with confidence.
           </motion.p>
 
           {/* Search */}
@@ -256,7 +265,7 @@ export default function Doctors() {
 
         {/* Count */}
         <p className="text-sm text-slate-500 mb-8 font-medium">
-          Showing <span className="font-extrabold text-slate-900">{filtered.length}</span> doctor{filtered.length !== 1 ? 's' : ''}
+          Showing <span className="font-extrabold text-slate-900">{filtered.length}</span> dentist{filtered.length !== 1 ? 's' : ''}
           {active !== 'All' && <> in <span className="text-primary-600 font-bold">{active}</span></>}
         </p>
 
@@ -350,7 +359,7 @@ export default function Doctors() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-28">
             <p className="text-6xl mb-5">🔍</p>
-            <h3 className="font-extrabold text-slate-900 text-2xl">No doctors found</h3>
+            <h3 className="font-extrabold text-slate-900 text-2xl">No dentists found</h3>
             <p className="text-slate-500 mt-2 mb-8">Try changing your search or filters</p>
             <button
               onClick={() => { setSearch(''); setActive('All'); setOnlyAvailable(false) }}
