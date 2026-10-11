@@ -1,373 +1,264 @@
-import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import useDocumentTitle from '../hooks/useDocumentTitle'
-import { Star, Clock, Banknote, Search, ArrowRight, Filter } from 'lucide-react'
+import useDoctorFilters from '../hooks/useDoctorFilters'
+import useNow from '../hooks/useNow'
+import { CLINIC, DAYS, wa, waBooking } from '../config/clinic'
+import { DOCTORS } from '../data/doctors'
+import { contactLink } from '../utils/links'
+import { Search, CalendarCheck, MessageCircle, Clock, ChevronDown, SearchX, X } from 'lucide-react'
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 30 },
-  show: (i = 0) => ({
-    opacity: 1, y: 0,
-    transition: { duration: 0.5, delay: i * 0.08, ease: 'easeOut' }
-  })
+/* This file is UI only. Filtering, URL state and schedule maths live in:
+   hooks/useDoctorFilters.js, utils/doctorSchedule.js, utils/links.js */
+
+const WEEK = [1, 2, 3, 4, 5, 6, 0]
+const heading = "font-['Source_Serif_4',Georgia,serif] tracking-tight text-[#0C3B4E]"
+const rs = (n) => `Rs. ${n.toLocaleString('en-PK')}`
+const focusRing = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0E7C9B]'
+const selectCls = `rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#0E7C9B] focus:outline-none focus:ring-2 focus:ring-[#0E7C9B]/25`
+
+// Round DP: local file first, then the link in doctors.js, then initials
+function Avatar({ doc }) {
+  const sources = [`/images/doctors/${doc.slug}.jpg`, doc.photo].filter(Boolean)
+  const [i, setI] = useState(0)
+  const initials = doc.name.replace('Dr. ', '').split(' ').map((w) => w[0]).join('')
+
+  if (i >= sources.length) {
+    return (
+      <div aria-hidden="true" className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-[#0C3B4E] text-xl font-semibold text-white">
+        {initials}
+      </div>
+    )
+  }
+  return (
+    <img
+      key={sources[i]}
+      src={sources[i]}
+      alt={doc.name}
+      width={72}
+      height={72}
+      loading="lazy"
+      decoding="async"
+      onError={() => setI(i + 1)}
+      className="h-[72px] w-[72px] shrink-0 rounded-full object-cover object-top ring-2 ring-[#EAF4F7]"
+    />
+  )
 }
 
-const doctors = [
-  {
-    id: 1,
-    name: 'Dr. Hira Baig',
-    specialty: 'Orthodontist',
-    exp: '9 years',
-    rating: 4.9,
-    reviews: 312,
-    fee: 2500,
-    img: 'https://randomuser.me/api/portraits/women/33.jpg',
-    color: 'bg-violet-50',
-    days: ['Mon', 'Wed', 'Fri'],
-    available: true,
-    about: 'Specialist in braces, aligners and bite correction with 9 years of clinical experience.',
-  },
-  {
-    id: 2,
-    name: 'Dr. Ali Hassan',
-    specialty: 'Endodontist',
-    exp: '10 years',
-    rating: 4.8,
-    reviews: 247,
-    fee: 3000,
-    img: 'https://randomuser.me/api/portraits/men/32.jpg',
-    color: 'bg-rose-50',
-    days: ['Tue', 'Thu', 'Sat'],
-    available: true,
-    about: 'Expert in painless root canal treatment and complex tooth pain diagnosis.',
-  },
-  {
-    id: 3,
-    name: 'Dr. Zunaira Imran',
-    specialty: 'Cosmetic Dentist',
-    exp: '8 years',
-    rating: 4.9,
-    reviews: 274,
-    fee: 3200,
-    img: 'https://randomuser.me/api/portraits/women/55.jpg',
-    color: 'bg-amber-50',
-    days: ['Mon', 'Wed', 'Thu', 'Sat'],
-    available: true,
-    about: 'Focused on smile makeovers — veneers, whitening and full cosmetic bonding.',
-  },
-  {
-    id: 4,
-    name: 'Dr. Omar Siddiqui',
-    specialty: 'Pediatric Dentist',
-    exp: '12 years',
-    rating: 4.7,
-    reviews: 421,
-    fee: 1800,
-    img: 'https://randomuser.me/api/portraits/men/75.jpg',
-    color: 'bg-green-50',
-    days: ['Mon', 'Wed', 'Sat'],
-    available: false,
-    about: 'Gentle, child-friendly dentist specializing in first visits and preventive care.',
-  },
-  {
-    id: 5,
-    name: 'Dr. Zara Malik',
-    specialty: 'Periodontist',
-    exp: '11 years',
-    rating: 4.9,
-    reviews: 198,
-    fee: 2800,
-    img: 'https://randomuser.me/api/portraits/women/90.jpg',
-    color: 'bg-pink-50',
-    days: ['Tue', 'Wed', 'Fri'],
-    available: true,
-    about: 'Gum disease and gum health specialist with a focus on long-term oral care.',
-  },
-  {
-    id: 6,
-    name: 'Dr. Bilal Raza',
-    specialty: 'Oral Surgeon',
-    exp: '10 years',
-    rating: 4.6,
-    reviews: 203,
-    fee: 3500,
-    img: 'https://randomuser.me/api/portraits/men/45.jpg',
-    color: 'bg-blue-50',
-    days: ['Mon', 'Thu', 'Sat'],
-    available: true,
-    about: 'Handles wisdom tooth extraction, dental implants and minor oral surgery.',
-  },
-  {
-    id: 7,
-    name: 'Dr. Sara Ahmed',
-    specialty: 'General Dentist',
-    exp: '6 years',
-    rating: 4.8,
-    reviews: 356,
-    fee: 1200,
-    img: 'https://randomuser.me/api/portraits/women/44.jpg',
-    color: 'bg-teal-50',
-    days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-    available: true,
-    about: 'Routine checkups, scaling & polishing, fillings and everyday dental care.',
-  },
-  {
-    id: 8,
-    name: 'Dr. Usman Tariq',
-    specialty: 'General Dentist',
-    exp: '8 years',
-    rating: 4.7,
-    reviews: 612,
-    fee: 1200,
-    img: 'https://randomuser.me/api/portraits/men/55.jpg',
-    color: 'bg-slate-50',
-    days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-    available: true,
-    about: 'General dental practice for checkups, fillings and family dental care.',
-  },
-]
-
-const specialties = [
-  'All', 'General Dentist', 'Orthodontist', 'Endodontist',
-  'Periodontist', 'Pediatric Dentist', 'Cosmetic Dentist', 'Oral Surgeon'
-]
-
-function ToothPattern({ className = '' }) {
+function DoctorCard({ d, service }) {
   return (
-    <svg className={`absolute inset-0 w-full h-full pointer-events-none ${className}`} xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <pattern id="toothPatternDoctors" x="0" y="0" width="90" height="90" patternUnits="userSpaceOnUse">
-          <path
-            d="M45 18c-6 0-8 5-13 5-6 0-9-6-9 4 0 9 3 24 8 32 3 5 6 3 7-2 1-4 2-7 7-7s6 3 7 7c1 5 4 7 7 2 5-8 8-23 8-32 0-10-3-4-9-4-5 0-7-5-13-5z"
-            fill="currentColor" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#toothPatternDoctors)" />
-    </svg>
+    <article className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="flex items-center gap-4">
+        <Avatar doc={d} />
+        <div className="min-w-0">
+          <h3 className="text-lg font-semibold leading-snug text-slate-900">{d.name}</h3>
+          <p className="text-sm font-medium text-[#0E7C9B]">{d.specialty}</p>
+          <p className="text-sm text-slate-500">{d.quals}</p>
+        </div>
+      </div>
+
+      <p className={`mt-4 flex items-center gap-2 text-sm font-medium ${d.slot.today ? 'text-emerald-700' : 'text-slate-700'}`}>
+        <Clock size={15} className="shrink-0" /> {d.slot.label}
+      </p>
+
+      <details className="mt-3">
+        <summary className={`flex cursor-pointer list-none items-center gap-1 rounded text-sm font-semibold text-[#0E7C9B] ${focusRing} [&::-webkit-details-marker]:hidden`}>
+          More details
+          <ChevronDown size={16} className="transition-transform [details[open]_&]:rotate-180" />
+        </summary>
+        <div className="mt-3 space-y-3 text-sm text-slate-600">
+          <p>{d.exp} years experience · PMDC {d.pmdc} · {d.languages.join(', ')}</p>
+          <ul className="flex flex-wrap gap-1.5">
+            {d.treats.map((t) => (
+              <li key={t} className="rounded-md bg-[#EAF4F7] px-2.5 py-1 text-xs font-medium text-[#0C3B4E]">{t}</li>
+            ))}
+          </ul>
+          <div className="flex gap-1" aria-label="Days in the clinic">
+            {WEEK.map((w) => (
+              <span key={w} title={DAYS[w]} className={`flex h-6 w-9 items-center justify-center rounded text-[11px] font-medium ${d.schedule[w] ? 'bg-[#0E7C9B]/10 text-[#0B6782]' : 'bg-slate-50 text-slate-300'}`}>
+                {DAYS[w].slice(0, 3)}
+              </span>
+            ))}
+          </div>
+        </div>
+      </details>
+
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-200 pt-4">
+        <p className="text-sm text-slate-500">Fee <span className="font-semibold text-slate-900">{rs(d.fee)}</span></p>
+        <div className="flex items-center gap-2">
+          <a
+            href={waBooking({ doctor: d.name, service })}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`WhatsApp about an appointment with ${d.name}`}
+            title="Ask on WhatsApp"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 text-[#1A8F5B] transition hover:border-[#1A8F5B] hover:bg-[#E6F6EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A8F5B]"
+          >
+            <MessageCircle size={18} />
+          </a>
+          <Link to={contactLink({ doctor: d.name, service })} className={`inline-flex items-center gap-2 rounded-lg bg-[#0E7C9B] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0B6782] ${focusRing}`}>
+            <CalendarCheck size={16} /> Book
+          </Link>
+        </div>
+      </div>
+    </article>
   )
 }
 
 export default function Doctors() {
   useDocumentTitle(
     'Our Dentists',
-    'Meet our verified dentists — orthodontists, endodontists, oral surgeons and general dentists. Check ratings, fees and availability, then book online.'
+    `Meet the dentists at ${CLINIC.name}, ${CLINIC.city}. See who is in the clinic today, their fees and languages, then book.`
   )
-  const [search, setSearch] = useState('')
-  const [active, setActive] = useState('All')
-  const [onlyAvailable, setOnlyAvailable] = useState(false)
-  const [sortBy, setSortBy] = useState('rating')
+  const now = useNow()
+  const reduce = useReducedMotion()
+  const { filters, results, specialties, hasFilters, service, setFilter, reset } = useDoctorFilters(DOCTORS, now)
 
-  const filtered = useMemo(() => {
-    let list = doctors.filter(d => {
-      const matchSearch =
-        d.name.toLowerCase().includes(search.toLowerCase()) ||
-        d.specialty.toLowerCase().includes(search.toLowerCase())
-      const matchSpec = active === 'All' || d.specialty === active
-      const matchAvail = !onlyAvailable || d.available
-      return matchSearch && matchSpec && matchAvail
-    })
-    if (sortBy === 'rating') list = [...list].sort((a, b) => b.rating - a.rating)
-    if (sortBy === 'fee_low') list = [...list].sort((a, b) => a.fee - b.fee)
-    if (sortBy === 'fee_high') list = [...list].sort((a, b) => b.fee - a.fee)
-    if (sortBy === 'exp') list = [...list].sort((a, b) => parseInt(b.exp) - parseInt(a.exp))
-    return list
-  }, [search, active, onlyAvailable, sortBy])
+  const rise = reduce ? {} : { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5, ease: 'easeOut' } }
+  const itemMotion = reduce
+    ? {}
+    : {
+        layout: 'position',
+        initial: { opacity: 0, scale: 0.96 },
+        animate: { opacity: 1, scale: 1 },
+        exit: { opacity: 0, scale: 0.96 },
+        transition: { duration: 0.22, ease: 'easeOut' },
+      }
+
+  // A link like ?specialty=Root%20canal is not one of the chips, so show it as its own removable chip
+  const customSpecialty = filters.specialty && !specialties.includes(filters.specialty) ? filters.specialty : ''
+  const chip = (active) =>
+    `whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition ${focusRing} ${
+      active ? 'border-[#0C3B4E] bg-[#0C3B4E] text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-[#0C3B4E]'
+    }`
 
   return (
-    <div className="pt-16 overflow-x-hidden">
+    <div className="bg-[#F7FBFC] text-slate-800">
 
-      {/* Header */}
-      <section className="relative bg-gradient-to-br from-primary-50 via-white to-blue-50 pt-20 pb-12 overflow-hidden">
-        <ToothPattern className="text-primary-600 opacity-[0.04]" />
-        <div className="absolute -top-10 -left-10 w-64 h-64 bg-primary-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-72 h-72 bg-blue-100 rounded-full blur-3xl opacity-40 pointer-events-none" />
-        <div className="section py-0 text-center relative">
-          <motion.span
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="badge mb-4">
-            Our Dental Team
-          </motion.span>
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-5xl font-extrabold text-slate-900 mt-3">
-            Meet Our Dentists
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-slate-500 mt-4 max-w-lg mx-auto text-lg">
-            Verified dental specialists with years of experience, ready to help you smile with confidence.
-          </motion.p>
+      {/* Header. The top padding clears the fixed navbar. */}
+      <section className="relative overflow-hidden bg-[#0C3B4E] pt-[72px] text-center text-white">
+        <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-white opacity-[0.07]" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="tooth-doctors" width="96" height="96" patternUnits="userSpaceOnUse" patternTransform="rotate(-12)">
+              <path d="M45 18c-6 0-8 5-13 5-6 0-9-6-9 4 0 9 3 24 8 32 3 5 6 3 7-2 1-4 2-7 7-7s6 3 7 7c1 5 4 7 7 2 5-8 8-23 8-32 0-10-3-4-9-4-5 0-7-5-13-5z" fill="currentColor" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#tooth-doctors)" />
+        </svg>
+        <div aria-hidden="true" className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[40rem] -translate-x-1/2 rounded-full bg-[#0E7C9B]/40 blur-3xl" />
 
-          {/* Search */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="relative max-w-lg mx-auto mt-10">
-            <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
+        <motion.div {...rise} className="relative mx-auto max-w-3xl px-4 pb-24 pt-14 sm:px-6 sm:pb-28 sm:pt-16">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur">
+            <svg viewBox="20 14 50 60" className="h-7 w-7 text-white" fill="currentColor" aria-hidden="true">
+              <path d="M45 18c-6 0-8 5-13 5-6 0-9-6-9 4 0 9 3 24 8 32 3 5 6 3 7-2 1-4 2-7 7-7s6 3 7 7c1 5 4 7 7 2 5-8 8-23 8-32 0-10-3-4-9-4-5 0-7-5-13-5z" />
+            </svg>
+          </span>
+          <h1 className="mt-6 font-['Source_Serif_4',Georgia,serif] text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
+            The dentists of <span className="italic text-[#8FD6EA]">{CLINIC.name}.</span>
+          </h1>
+          <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-slate-200">
+            Search by your problem, and see who is in the clinic today.
+          </p>
+
+          <div className="relative mx-auto mt-8 max-w-xl text-left">
+            <label htmlFor="doc-search" className="sr-only">Search by dentist name or treatment</label>
+            <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
-              className="w-full border border-slate-200 rounded-full px-5 pl-12 py-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-lg bg-white"
-              placeholder="Search by name or specialty..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              id="doc-search"
+              type="search"
+              value={filters.q}
+              onChange={(e) => setFilter('q', e.target.value)}
+              placeholder="Try: braces, root canal, bleeding gums"
+              className="w-full rounded-xl border border-slate-300 bg-white py-3.5 pl-11 pr-4 text-sm text-slate-900 shadow-sm focus:border-[#0E7C9B] focus:outline-none focus:ring-2 focus:ring-[#0E7C9B]/25"
             />
-          </motion.div>
-        </div>
+          </div>
+        </motion.div>
+
+        <svg aria-hidden="true" viewBox="0 0 1440 60" preserveAspectRatio="none" className="absolute bottom-[-1px] left-0 h-10 w-full text-[#F7FBFC] sm:h-14">
+          <path d="M0 60V35C240 5 480 5 720 25S1200 55 1440 25V60H0Z" fill="currentColor" />
+        </svg>
       </section>
 
-      <section className="section pt-10">
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8" aria-labelledby="results-title">
+        <h2 id="results-title" className="sr-only">Dentists</h2>
 
-        {/* Filters Row */}
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-8">
-          {/* Specialty Pills */}
-          <div className="flex gap-2 flex-wrap">
-            {specialties.map(s => (
-              <motion.button
-                key={s}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setActive(s)}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 ${
-                  active === s
-                    ? 'bg-primary-600 text-white shadow-lg'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:border-primary-300'
-                }`}>
-                {s}
-              </motion.button>
-            ))}
-          </div>
+        {service && (
+          <p className="mb-5 rounded-lg bg-[#EAF4F7] px-4 py-3 text-sm text-slate-700">
+            Booking for <span className="font-semibold">{service}</span>. Pick a dentist and we will carry this to the booking form.
+          </p>
+        )}
 
-          {/* Right filters */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <label className="flex items-center gap-2 cursor-pointer bg-white border border-slate-200 rounded-full px-4 py-2">
-              <input
-                type="checkbox"
-                className="accent-primary-600 w-4 h-4"
-                checked={onlyAvailable}
-                onChange={e => setOnlyAvailable(e.target.checked)}
-              />
-              <span className="text-xs font-bold text-slate-700">Available Today</span>
-            </label>
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2">
-              <Filter size={14} className="text-slate-400" />
-              <select
-                className="text-xs font-bold text-slate-700 focus:outline-none bg-transparent cursor-pointer"
-                value={sortBy}
-                onChange={e => setSortBy(e.target.value)}>
-                <option value="rating">Top Rated</option>
-                <option value="fee_low">Fee: Low to High</option>
-                <option value="fee_high">Fee: High to Low</option>
-                <option value="exp">Most Experienced</option>
-              </select>
-            </div>
-          </div>
+        {/* Specialty chips */}
+        <div className="flex gap-2 overflow-x-auto pb-2" role="group" aria-label="Filter by specialty">
+          <button type="button" onClick={() => setFilter('specialty', '')} aria-pressed={!filters.specialty} className={chip(!filters.specialty)}>All</button>
+          {specialties.map((s) => (
+            <button key={s} type="button" onClick={() => setFilter('specialty', s)} aria-pressed={filters.specialty === s} className={chip(filters.specialty === s)}>
+              {s}
+            </button>
+          ))}
+          {customSpecialty && (
+            <button type="button" onClick={() => setFilter('specialty', '')} aria-label={`Remove filter ${customSpecialty}`} className={`${chip(true)} inline-flex items-center gap-1.5`}>
+              {customSpecialty} <X size={14} aria-hidden="true" />
+            </button>
+          )}
         </div>
 
-        {/* Count */}
-        <p className="text-sm text-slate-500 mb-8 font-medium">
-          Showing <span className="font-extrabold text-slate-900">{filtered.length}</span> dentist{filtered.length !== 1 ? 's' : ''}
-          {active !== 'All' && <> in <span className="text-primary-600 font-bold">{active}</span></>}
-        </p>
+        {/* Practical filters */}
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <select value={filters.gender} onChange={(e) => setFilter('gender', e.target.value)} className={selectCls} aria-label="Dentist gender">
+            <option value="any">Any dentist</option>
+            <option value="female">Female dentist</option>
+            <option value="male">Male dentist</option>
+          </select>
 
-        {/* Grid */}
-        {filtered.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((doc, i) => (
-              <motion.div
-                key={doc.id}
-                variants={fadeUp}
-                initial="hidden"
-                whileInView="show"
-                viewport={{ once: true }}
-                custom={i}>
-                <div className="card p-6 flex flex-col h-full hover:-translate-y-1">
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[#0E7C9B]">
+            <input type="checkbox" checked={filters.today} onChange={(e) => setFilter('today', e.target.checked)} className="h-4 w-4 accent-[#0E7C9B]" />
+            In the clinic today
+          </label>
 
-                  {/* Top */}
-                  <div className="flex items-start gap-4 mb-5">
-                    <div className="relative flex-shrink-0">
-                      <img
-                        src={doc.img}
-                        alt={doc.name}
-                        className={`w-16 h-16 rounded-2xl object-cover ${doc.color}`}
-                        onError={e => {
-                          e.target.src = `https://ui-avatars.com/api/?name=${doc.name}&background=0284c7&color=fff&size=64`
-                        }}
-                      />
-                      {doc.available && (
-                        <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-slate-900 text-base truncate">{doc.name}</h3>
-                      <p className="text-primary-600 text-sm font-semibold">{doc.specialty}</p>
-                      <div className="flex items-center gap-1 mt-1.5">
-                        <Star size={13} className="text-amber-400 fill-amber-400" />
-                        <span className="text-sm font-bold text-slate-800">{doc.rating}</span>
-                        <span className="text-xs text-slate-400">({doc.reviews} reviews)</span>
-                      </div>
-                    </div>
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
-                      doc.available
-                        ? 'bg-green-50 text-green-600'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {doc.available ? '● Available' : '○ Busy'}
-                    </span>
-                  </div>
+          <p className="ml-auto text-sm text-slate-500" aria-live="polite">
+            {results.length} {results.length === 1 ? 'dentist' : 'dentists'}
+            {hasFilters && <> · <button type="button" onClick={reset} className={`rounded font-semibold text-[#0E7C9B] hover:underline ${focusRing}`}>Clear</button></>}
+          </p>
+        </div>
 
-                  {/* About */}
-                  <p className="text-xs text-slate-500 leading-relaxed mb-4">{doc.about}</p>
-
-                  {/* Info */}
-                  <div className="flex gap-4 text-xs text-slate-500 mb-4">
-                    <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-full">
-                      <Clock size={11} className="text-primary-400" /> {doc.exp}
-                    </span>
-                    <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-full">
-                      <Banknote size={11} className="text-primary-400" /> Rs. {doc.fee.toLocaleString()}
-                    </span>
-                  </div>
-
-                  {/* Days */}
-                  <div className="flex gap-1.5 mb-6 flex-wrap">
-                    {['Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
-                      <span key={d}
-                        className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
-                          doc.days.includes(d)
-                            ? 'bg-primary-50 text-primary-600'
-                            : 'bg-slate-50 text-slate-300'
-                        }`}>
-                        {d}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Button */}
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="mt-auto">
-                    <Link to="/contact"
-                      className="btn-primary w-full justify-center py-3">
-                      Book Appointment <ArrowRight size={15} />
-                    </Link>
-                  </motion.div>
-                </div>
-              </motion.div>
+        {/* Results: cards animate in and out as filters change */}
+        <ul className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <AnimatePresence mode="popLayout" initial={false}>
+            {results.map((d) => (
+              <motion.li key={d.id} className="h-full" {...itemMotion}>
+                <DoctorCard d={d} service={service} />
+              </motion.li>
             ))}
+          </AnimatePresence>
+        </ul>
+
+        {results.length === 0 && (
+          <div className="mx-auto mt-8 max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center">
+            <SearchX size={32} className="mx-auto text-slate-400" />
+            <h3 className="mt-3 text-lg font-semibold text-slate-900">No dentist matches these filters</h3>
+            <p className="mt-1.5 text-sm text-slate-600">Remove a filter, or tell us your problem and our front desk will suggest the right dentist.</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
+              <button type="button" onClick={reset} className={`rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-800 hover:border-slate-500 ${focusRing}`}>Clear filters</button>
+              <a href={wa('Assalam o Alaikum, I need help choosing the right dentist.')} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-[#1A8F5B] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#157A4C]">
+                <MessageCircle size={16} /> Ask on WhatsApp
+              </a>
+            </div>
           </div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-28">
-            <p className="text-6xl mb-5">🔍</p>
-            <h3 className="font-extrabold text-slate-900 text-2xl">No dentists found</h3>
-            <p className="text-slate-500 mt-2 mb-8">Try changing your search or filters</p>
-            <button
-              onClick={() => { setSearch(''); setActive('All'); setOnlyAvailable(false) }}
-              className="btn-primary px-8">
-              Clear All Filters
-            </button>
-          </motion.div>
         )}
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-[#0C3B4E] px-6 py-6 text-white sm:px-8">
+          <div>
+            <h2 className="font-['Source_Serif_4',Georgia,serif] text-xl font-semibold">Not sure who to pick?</h2>
+            <p className="mt-1 text-slate-200">Start with a checkup. We will tell you if you need a specialist.</p>
+          </div>
+          <Link to={contactLink({ service: 'Checkup & cleaning' })} className="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-[#0C3B4E] hover:bg-slate-100">
+            <CalendarCheck size={18} /> Book a checkup
+          </Link>
+        </div>
       </section>
     </div>
   )

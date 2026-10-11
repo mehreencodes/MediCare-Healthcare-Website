@@ -1,10 +1,4 @@
 import { useEffect } from 'react'
-
-/**
- * Sets the browser tab title and meta description for the current page.
- * Basic but genuinely useful SEO — Google uses these for search snippets,
- * and browsers/WhatsApp/Facebook use them for link previews.
- */
 export default function useDocumentTitle(title, description) {
   useEffect(() => {
     const fullTitle = `${title} | BrightSmile Dental Care`

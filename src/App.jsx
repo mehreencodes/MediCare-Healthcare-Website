@@ -6,6 +6,7 @@ import Home from './pages/Home'
 import Services from './pages/Services'
 import Doctors from './pages/Doctors'
 import Contact from './pages/Contact'
+import WhatsAppButton from './components/WhatsAppButton'
 
 const pageVariants = {
   initial: { opacity: 0, y: 24 },
@@ -37,6 +38,7 @@ export default function App() {
         <AnimatedRoutes />
       </main>
       <Footer />
+       <WhatsAppButton />
     </div>
   )
 }
