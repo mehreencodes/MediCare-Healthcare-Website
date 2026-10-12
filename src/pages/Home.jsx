@@ -184,7 +184,7 @@ function HeroVisual({ status }) {
         <img
           src={HERO_IMG}
           alt="A dentist at the clinic"
-          fetchpriority="high"
+             fetchPriority="high"
           onError={() => setFailed(true)}
           className="absolute bottom-0 left-1/2 h-full w-auto max-w-full -translate-x-1/2 object-contain object-bottom"
         />

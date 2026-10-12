@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://medi-care-healthcare-website.vercel.app/sitemap.xml
