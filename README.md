@@ -1,3 +1,6 @@
+![CI](https://github.com/mehreencodes/MediCare-Healthcare-Website/actions/workflows/ci.yml/badge.svg)
+
+
 # Noor Family Clinic: Dental Clinic Website
 
 A production-style website for a dental clinic in Lahore, built with React. It focuses on what patients actually need: who treats my problem, who is in the clinic today, what will it cost, and how do I book or reach someone quickly.
