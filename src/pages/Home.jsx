@@ -9,7 +9,7 @@ import Pricing from '../components/home/Pricing'
 import Reviews from '../components/home/Reviews'
 import BeforeAfter from '../components/home/BeforeAfter'
 import EmergencyTriage from '../components/home/EmergencyTriage'
-import heroDoc from '../assets/hero-doc.png'
+   import heroDoc from '../assets/hero-doc.webp'
 import { contactLink, doctorsLink } from '../utils/links'
 import {
   Phone, MessageCircle, CalendarCheck, Smile, Wrench, Pin, Sparkles, Baby, Syringe,
