@@ -46,7 +46,7 @@ export default function Navbar() {
       {/* Info bar, desktop only */}
       <div
         className="hidden h-9 bg-[#092C3B] text-xs text-slate-300 md:block"
-        inert={scrolled ? '' : undefined}
+        inert={scrolled}
       >
         <div className="mx-auto flex h-full max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
           <ul className="flex items-center gap-5">

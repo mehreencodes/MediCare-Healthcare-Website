@@ -4,14 +4,24 @@ import { motion, useReducedMotion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import useOpenStatus from '../hooks/useOpenStatus'
+import usePersistentState from '../hooks/usePersistentState'
 import { CLINIC, DAYS, DOCTOR_NAMES, SERVICE_NAMES, fmtHour, wa } from '../config/clinic'
-import { Phone, MessageCircle, Mail, MapPin, Clock, CalendarCheck, CheckCircle2, Siren, Send } from 'lucide-react'
+import { appointmentToEvent, buildIcs } from '../utils/Calendar.js'
+import { downloadTextFile } from '../utils/download'
+import {
+  Phone, MessageCircle, Mail, MapPin, Clock, CalendarCheck, CheckCircle2, Siren, Send, CalendarPlus,
+} from 'lucide-react'
 
-/* How a request is delivered
-   1. If the three EmailJS variables below are set, the request is
-      emailed to the clinic (no backend needed).
+/* ------------------------------------------------------------------
+   How a request is delivered
+   1. If the three EmailJS variables are set, the request is emailed to
+      the clinic (no backend needed).
    2. If they are not set, the form opens WhatsApp with the request
-      already written, so no request is ever silently lost. */
+      already written, so no request is ever silently lost.
+     VITE_EMAILJS_SERVICE_ID, VITE_EMAILJS_TEMPLATE_ID, VITE_EMAILJS_PUBLIC_KEY
+   EmailJS template variables: {{name}} {{phone}} {{email}} {{service}}
+   {{doctor}} {{date}} {{time}} {{urgent}} {{message}}
+------------------------------------------------------------------- */
 const EMAILJS = {
   service: import.meta.env.VITE_EMAILJS_SERVICE_ID,
   template: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
@@ -23,6 +33,19 @@ const TIMES = ['Any time', 'Morning', 'Afternoon', 'Evening']
 const DOCTOR_ANY = 'Any available dentist'
 const WEEK = [1, 2, 3, 4, 5, 6, 0]
 
+// Draft saving: stays on this device, expires after a day, and an empty form saves nothing
+const DRAFT_KEY = 'clinic:booking-draft'
+const DRAFT_OPTIONS = {
+  version: 1,
+  exclude: ['website'], // the spam-trap field is never stored
+  shouldSave: (f) => Boolean(f.name.trim() || f.phone.trim() || f.email.trim() || f.message.trim()),
+}
+
+const EMPTY_FORM = {
+  name: '', phone: '', email: '', message: '', urgent: false, website: '',
+  service: '', doctor: DOCTOR_ANY, time: 'Any time', date: '',
+}
+
 /* ---------- helpers ---------- */
 const heading = "font-['Source_Serif_4',Georgia,serif] tracking-tight text-[#0C3B4E]"
 
@@ -33,17 +56,18 @@ const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); retur
 const fromISO = (s) => new Date(`${s}T00:00:00`)
 const prettyDate = (s) => fromISO(s).toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long' })
 
-// Accepts 0300 1234567, 0300-1234567, +92 300 1234567, 923001234567
-function normalizePhone(raw) {
-  const digits = raw.replace(/[^\d+]/g, '').replace(/^\+/, '').replace(/^00/, '')
-  const m = digits.match(/^(?:92|0)?(3\d{9})$/)
-  return m ? `+92${m[1]}` : null
-}
 // Case-insensitive, partial match: ?doctor=Dr.%20Hira and ?service=Teeth%20Whitening both work
 const matchName = (list, value) => {
   if (!value) return ''
   const v = value.trim().toLowerCase()
   return list.find((n) => n.toLowerCase() === v) ?? list.find((n) => n.toLowerCase().includes(v)) ?? ''
+}
+
+// Accepts 0300 1234567, 0300-1234567, +92 300 1234567, 923001234567
+function normalizePhone(raw) {
+  const digits = raw.replace(/[^\d+]/g, '').replace(/^\+/, '').replace(/^00/, '')
+  const m = digits.match(/^(?:92|0)?(3\d{9})$/)
+  return m ? `+92${m[1]}` : null
 }
 
 function buildMessage(f) {
@@ -102,6 +126,8 @@ function Field({ id, label, optional, error, children }) {
   )
 }
 
+const cardCls = 'flex items-center gap-4 rounded-2xl bg-white p-5 shadow-[0_18px_40px_-18px_rgba(12,59,78,0.5)] ring-1 ring-slate-200 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2'
+
 /* ---------- page ---------- */
 export default function Contact() {
   useDocumentTitle(
@@ -113,26 +139,39 @@ export default function Contact() {
   const rise = reduce ? {} : { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5, ease: 'easeOut' } }
   const [params] = useSearchParams()
 
-  // Other pages link here with ?service=, ?doctor= and ?day=Today|Tomorrow or ?date=YYYY-MM-DD
-  const initial = useMemo(() => {
-    const svc = params.get('service')
-    const doc = params.get('doctor')
+  // Values that come from the link (?service=, ?doctor=, ?day=Today|Tomorrow, ?date=YYYY-MM-DD).
+  // Only the fields that are really in the link, so they can win over a saved draft.
+  const urlValues = useMemo(() => {
+    const v = {}
+    const svc = matchName(SERVICE_NAMES, params.get('service'))
+    const doc = matchName(DOCTOR_NAMES, params.get('doctor'))
     const day = params.get('day')
     const date = params.get('date')
-    return {
-      name: '', phone: '', email: '', message: '', urgent: false, website: '',
-     service: matchName(SERVICE_NAMES, svc),
-doctor: matchName(DOCTOR_NAMES, doc) || DOCTOR_ANY,
-      time: 'Any time',
-      date: /^\d{4}-\d{2}-\d{2}$/.test(date || '') ? date : day === 'Today' ? toLocalISO(new Date()) : day === 'Tomorrow' ? toLocalISO(addDays(1)) : '',
-    }
+    if (svc) v.service = svc
+    if (doc) v.doctor = doc
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date || '')) v.date = date
+    else if (day === 'Today') v.date = toLocalISO(new Date())
+    else if (day === 'Tomorrow') v.date = toLocalISO(addDays(1))
+    return v
   }, [params])
 
-  const [form, setForm] = useState(initial)
+  const initial = useMemo(() => ({ ...EMPTY_FORM, ...urlValues }), [urlValues])
+
+  // The draft is restored after a refresh, but a date that has already passed is dropped
+  const [form, setForm, draft] = usePersistentState(DRAFT_KEY, initial, {
+    ...DRAFT_OPTIONS,
+    overrides: urlValues,
+    sanitize: (d) => (d.date && d.date < toLocalISO(new Date()) ? { ...d, date: '' } : d),
+  })
+
+  // If the link changes while this page is open, apply the new values without wiping what was typed
+  useEffect(() => {
+    if (Object.keys(urlValues).length) setForm((p) => ({ ...p, ...urlValues }))
+  }, [urlValues, setForm])
+
   const [errors, setErrors] = useState({})
   const [status, setStatus] = useState('idle') // idle | sending | sent | failed
   const [sentVia, setSentVia] = useState('')
-  useEffect(() => { setForm(initial) }, [initial])
 
   const set = (key) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value
@@ -157,6 +196,12 @@ doctor: matchName(DOCTOR_NAMES, doc) || DOCTOR_ANY,
 
   const openWhatsApp = () => window.open(wa(buildMessage(form)), '_blank', 'noopener')
 
+  const addToCalendar = () => {
+    const hours = CLINIC.hours[fromISO(form.date).getDay()]
+    if (!hours) return
+    downloadTextFile('dental-appointment-request.ics', buildIcs(appointmentToEvent(form, CLINIC, hours)), 'text/calendar')
+  }
+
   async function submit(ev) {
     ev.preventDefault()
     if (form.website) return // honeypot: real people never fill this field
@@ -171,6 +216,7 @@ doctor: matchName(DOCTOR_NAMES, doc) || DOCTOR_ANY,
       openWhatsApp()
       setSentVia('whatsapp')
       setStatus('sent')
+      draft.clear() // the request has left, so the saved draft is no longer needed
       return
     }
     setStatus('sending')
@@ -178,6 +224,7 @@ doctor: matchName(DOCTOR_NAMES, doc) || DOCTOR_ANY,
       await sendViaEmailJS(form)
       setSentVia('email')
       setStatus('sent')
+      draft.clear()
       toast.success('Request sent to the clinic.')
     } catch {
       setStatus('failed')
@@ -185,68 +232,68 @@ doctor: matchName(DOCTOR_NAMES, doc) || DOCTOR_ANY,
     }
   }
 
-  const reset = () => { setForm(initial); setErrors({}); setStatus('idle') }
+  const startOver = () => { draft.reset(); setErrors({}); setStatus('idle') }
 
   return (
     <div className="bg-[#F7FBFC] text-slate-800">
 
+      {/* Header. The top padding clears the fixed navbar. */}
       <section className="relative overflow-hidden bg-[#0C3B4E] pt-[72px] text-white">
-  {/* Diagonal line texture (different from the tooth pattern on other pages) */}
-  <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.07]"
-    style={{ backgroundImage: 'repeating-linear-gradient(135deg, #fff 0, #fff 1px, transparent 1px, transparent 14px)' }} />
-  <div aria-hidden="true" className="pointer-events-none absolute -right-20 top-10 h-80 w-80 rounded-full bg-[#0E7C9B]/40 blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          style={{ backgroundImage: 'repeating-linear-gradient(135deg, #fff 0, #fff 1px, transparent 1px, transparent 14px)' }} />
+        <div aria-hidden="true" className="pointer-events-none absolute -right-20 top-10 h-80 w-80 rounded-full bg-[#0E7C9B]/40 blur-3xl" />
 
-  <motion.div {...rise} className="relative mx-auto max-w-6xl px-4 pb-28 pt-14 sm:px-6 lg:px-8 lg:pb-32">
-   <p className="flex items-center gap-2 text-sm font-medium text-[#8FD6EA]">
-  <span className={`h-2 w-2 rounded-full ${openStatus.open ? 'bg-emerald-400' : 'bg-amber-400'}`} aria-hidden="true" />
-  {openStatus.text}
-</p>
-    <h1 className="mt-4 max-w-2xl font-['Source_Serif_4',Georgia,serif] text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
-      Book a visit, or just <span className="italic text-[#8FD6EA]">ask us anything.</span>
-    </h1>
-    <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-200">
-      Send a request below and we confirm the time by WhatsApp or phone. For severe pain, call, the emergency line never closes.
-    </p>
-  </motion.div>
-</section>
+        <motion.div {...rise} className="relative mx-auto max-w-6xl px-4 pb-28 pt-14 sm:px-6 lg:px-8 lg:pb-32">
+          <p className="flex items-center gap-2 text-sm font-medium text-[#8FD6EA]">
+            <span className={`h-2 w-2 rounded-full ${openStatus.open ? 'bg-emerald-400' : 'bg-amber-400'}`} aria-hidden="true" />
+            {openStatus.text}
+          </p>
+          <h1 className="mt-4 max-w-2xl font-['Source_Serif_4',Georgia,serif] text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
+            Book a visit, or just <span className="italic text-[#8FD6EA]">ask us anything.</span>
+          </h1>
+          <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-200">
+            Send a request below and we confirm the time by WhatsApp or phone. For severe pain, call, the emergency line never closes.
+          </p>
+        </motion.div>
+      </section>
 
-{/* Quick contact cards overlapping the banner */}
-<section className="relative z-10 mx-auto -mt-16 max-w-6xl px-4 sm:px-6 lg:px-8">
-  <ul className="grid gap-4 md:grid-cols-3">
-    <li>
-      <a href={`tel:${CLINIC.phoneTel}`} className="flex items-center gap-4 rounded-2xl bg-white p-5 shadow-[0_18px_40px_-18px_rgba(12,59,78,0.5)] ring-1 ring-slate-200 transition hover:ring-[#0E7C9B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0E7C9B]">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#EAF4F7] text-[#0E7C9B]"><Phone size={21} /></span>
-        <span className="min-w-0">
-          <span className="block text-xs text-slate-500">Call us</span>
-          <span className="block font-semibold text-slate-900">{CLINIC.phoneDisplay}</span>
-          <span className="block text-xs text-slate-500">Emergency line, 24 hours</span>
-        </span>
-      </a>
-    </li>
-    <li>
-      <a href={wa('Assalam o Alaikum, I have a question.')} target="_blank" rel="noreferrer" className="flex items-center gap-4 rounded-2xl bg-white p-5 shadow-[0_18px_40px_-18px_rgba(12,59,78,0.5)] ring-1 ring-slate-200 transition hover:ring-[#1A8F5B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A8F5B]">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E6F6EE] text-[#1A8F5B]"><MessageCircle size={21} /></span>
-        <span className="min-w-0">
-          <span className="block text-xs text-slate-500">Message us</span>
-          <span className="block font-semibold text-slate-900">WhatsApp</span>
-          <span className="block text-xs text-slate-500">Quickest way to ask a question</span>
-        </span>
-      </a>
-    </li>
-    <li>
-      <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(CLINIC.mapsQuery)}`} target="_blank" rel="noreferrer" className="flex items-center gap-4 rounded-2xl bg-white p-5 shadow-[0_18px_40px_-18px_rgba(12,59,78,0.5)] ring-1 ring-slate-200 transition hover:ring-[#0E7C9B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0E7C9B]">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#EAF4F7] text-[#0E7C9B]"><MapPin size={21} /></span>
-        <span className="min-w-0">
-          <span className="block text-xs text-slate-500">Visit us</span>
-          <span className="block font-semibold text-slate-900">{CLINIC.area}, {CLINIC.city}</span>
-          <span className="block text-xs text-slate-500">Tap for directions</span>
-        </span>
-      </a>
-    </li>
-  </ul>
-</section>
+      {/* Quick contact cards overlapping the banner */}
+      <section className="relative z-10 mx-auto -mt-16 max-w-6xl px-4 sm:px-6 lg:px-8">
+        <ul className="grid gap-4 md:grid-cols-3">
+          <li>
+            <a href={`tel:${CLINIC.phoneTel}`} className={`${cardCls} hover:ring-[#0E7C9B] focus-visible:outline-[#0E7C9B]`}>
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#EAF4F7] text-[#0E7C9B]"><Phone size={21} /></span>
+              <span className="min-w-0">
+                <span className="block text-xs text-slate-500">Call us</span>
+                <span className="block font-semibold text-slate-900">{CLINIC.phoneDisplay}</span>
+                <span className="block text-xs text-slate-500">Emergency line, 24 hours</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a href={wa('Assalam o Alaikum, I have a question.')} target="_blank" rel="noreferrer" className={`${cardCls} hover:ring-[#1A8F5B] focus-visible:outline-[#1A8F5B]`}>
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E6F6EE] text-[#1A8F5B]"><MessageCircle size={21} /></span>
+              <span className="min-w-0">
+                <span className="block text-xs text-slate-500">Message us</span>
+                <span className="block font-semibold text-slate-900">WhatsApp</span>
+                <span className="block text-xs text-slate-500">Quickest way to ask a question</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(CLINIC.mapsQuery)}`} target="_blank" rel="noreferrer" className={`${cardCls} hover:ring-[#0E7C9B] focus-visible:outline-[#0E7C9B]`}>
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#EAF4F7] text-[#0E7C9B]"><MapPin size={21} /></span>
+              <span className="min-w-0">
+                <span className="block text-xs text-slate-500">Visit us</span>
+                <span className="block font-semibold text-slate-900">{CLINIC.area}, {CLINIC.city}</span>
+                <span className="block text-xs text-slate-500">Tap for directions</span>
+              </span>
+            </a>
+          </li>
+        </ul>
+      </section>
 
-      <section className="mx-auto grid max-w-6xl items-start gap-10 px-4 py-10 sm:px-6 lg:grid-cols-5 lg:gap-12 lg:px-8">
+      <section className="mx-auto grid max-w-6xl items-start gap-10 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-5 lg:gap-12 lg:px-8">
 
         {/* FORM / SUCCESS */}
         <div className="lg:col-span-3">
@@ -270,13 +317,19 @@ doctor: matchName(DOCTOR_NAMES, doc) || DOCTOR_ANY,
               </dl>
 
               <div className="mt-6 flex flex-wrap gap-3">
+                <button onClick={addToCalendar} className="inline-flex items-center gap-2 rounded-lg bg-[#0E7C9B] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0B6782] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0E7C9B]">
+                  <CalendarPlus size={17} /> Add to calendar
+                </button>
                 <button onClick={openWhatsApp} className="inline-flex items-center gap-2 rounded-lg bg-[#1A8F5B] px-5 py-3 text-sm font-semibold text-white hover:bg-[#157A4C]">
                   <MessageCircle size={17} /> {sentVia === 'email' ? 'Also message us on WhatsApp' : 'Open WhatsApp again'}
                 </button>
-                <button onClick={reset} className="rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-800 hover:border-slate-500">
+                <button onClick={startOver} className="rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-800 hover:border-slate-500">
                   Book another appointment
                 </button>
               </div>
+              <p className="mt-3 text-xs text-slate-500">
+                The calendar entry is saved as tentative, with a reminder 2 hours before. The clinic confirms the exact time.
+              </p>
             </div>
           ) : (
             <form onSubmit={submit} noValidate className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
@@ -284,6 +337,15 @@ doctor: matchName(DOCTOR_NAMES, doc) || DOCTOR_ANY,
                 <h2 className={`${heading} text-2xl font-semibold`}>Your details</h2>
                 <p className="mt-1 text-sm text-slate-500">Fields marked optional can be left empty.</p>
               </div>
+
+              {draft.restored && (
+                <p role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#EAF4F7] px-4 py-3 text-sm text-slate-700">
+                  <span>We restored what you typed earlier. It is saved only on this device.</span>
+                  <button type="button" onClick={startOver} className="font-semibold text-[#0E7C9B] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0E7C9B]">
+                    Start over
+                  </button>
+                </p>
+              )}
 
               {/* Honeypot, hidden from people */}
               <div className="hidden" aria-hidden="true">
@@ -391,16 +453,6 @@ doctor: matchName(DOCTOR_NAMES, doc) || DOCTOR_ANY,
         {/* SIDEBAR */}
         <aside className="space-y-5 lg:col-span-2">
           <div className="rounded-2xl border border-slate-200 bg-white p-6">
-            <h2 className={`${heading} text-xl font-semibold`}>Reach us directly</h2>
-            <ul className="mt-4 space-y-4 text-sm">
-              <li><a href={`tel:${CLINIC.phoneTel}`} className="flex items-start gap-3 hover:text-[#0E7C9B]"><Phone size={18} className="mt-0.5 shrink-0 text-[#0E7C9B]" /><span><span className="block font-semibold text-slate-900">{CLINIC.phoneDisplay}</span><span className="text-slate-500">Call for urgent cases</span></span></a></li>
-              <li><a href={wa('Assalam o Alaikum, I have a question.')} target="_blank" rel="noreferrer" className="flex items-start gap-3 hover:text-[#0E7C9B]"><MessageCircle size={18} className="mt-0.5 shrink-0 text-[#0E7C9B]" /><span><span className="block font-semibold text-slate-900">WhatsApp</span><span className="text-slate-500">Quickest way to ask a question</span></span></a></li>
-              <li><a href={`mailto:${CLINIC.email}`} className="flex items-start gap-3 hover:text-[#0E7C9B]"><Mail size={18} className="mt-0.5 shrink-0 text-[#0E7C9B]" /><span><span className="block font-semibold text-slate-900">{CLINIC.email}</span><span className="text-slate-500">For reports and non-urgent mail</span></span></a></li>
-              <li className="flex items-start gap-3"><MapPin size={18} className="mt-0.5 shrink-0 text-[#0E7C9B]" /><span className="font-medium text-slate-900">{CLINIC.address}</span></li>
-            </ul>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-6">
             <h2 className="flex items-center gap-2 font-semibold text-slate-900"><Clock size={18} className="text-[#0E7C9B]" /> Clinic hours</h2>
             <table className="mt-3 w-full text-sm">
               <caption className="sr-only">Clinic hours</caption>
@@ -417,6 +469,9 @@ doctor: matchName(DOCTOR_NAMES, doc) || DOCTOR_ANY,
                 })}
               </tbody>
             </table>
+            <p className="mt-4 border-t border-slate-200 pt-3 text-sm text-slate-600">
+              Email: <a href={`mailto:${CLINIC.email}`} className="font-semibold text-[#0E7C9B] hover:underline">{CLINIC.email}</a>
+            </p>
           </div>
 
           <div className="rounded-2xl bg-[#C93535] p-6 text-white">
