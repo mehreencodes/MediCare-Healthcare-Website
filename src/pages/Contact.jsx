@@ -6,7 +6,7 @@ import useDocumentTitle from '../hooks/useDocumentTitle'
 import useOpenStatus from '../hooks/useOpenStatus'
 import usePersistentState from '../hooks/usePersistentState'
 import { CLINIC, DAYS, DOCTOR_NAMES, SERVICE_NAMES, fmtHour, wa } from '../config/clinic'
-import { appointmentToEvent, buildIcs } from '../utils/Calendar.js'
+import { appointmentToEvent, buildIcs } from '../utils/calendar'
 import { downloadTextFile } from '../utils/download'
 import {
   Phone, MessageCircle, Mail, MapPin, Clock, CalendarCheck, CheckCircle2, Siren, Send, CalendarPlus,
