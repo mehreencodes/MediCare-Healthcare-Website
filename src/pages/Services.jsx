@@ -125,7 +125,6 @@ function FAQItem({ q, a }) {
   See dentists for this
 </Link> */}
 export default function Services() {
-     throw new Error('test crash')
   useDocumentTitle(
     'Dental Treatments & Fees',
     `Checkups, fillings, root canal, whitening, braces, implants and kids dentistry at ${CLINIC.name}, ${CLINIC.city}. Starting fees shown for every treatment.`
